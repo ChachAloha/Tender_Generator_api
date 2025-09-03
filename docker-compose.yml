@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  tender-api:
+    build: .
+    container_name: tender-api-container
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./output:/app/output
+      - ./template:/app/template
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"      # 单个日志文件最大 50MB
+        max-file: "3"        # 最多保留 3 个日志文件

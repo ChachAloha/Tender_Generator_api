@@ -1,0 +1,202 @@
+---
+alwaysApply: false
+---
+# Tender Generator API - Cursor Rules
+
+## 项目概述
+这是一个基于 FastAPI 和 OpenAI API 开发的文档处理与生成服务，专门用于处理招标文档（Tender Documents）。系统提供文档总结、目录结构生成、内容生成以及补充文档生成功能，所有处理任务都通过异步方式执行。
+
+## 技术栈
+- **框架**: FastAPI (v0.115.x)
+- **AI模型**: OpenAI API (默认 deepseek-chat via `https://api.deepseek.com/v1`)
+- **文档处理**: python-docx (v1.1.2)
+- **异步处理**: asyncio
+- **模板引擎**: Jinja2 (v3.1.6)
+- **服务器**: uvicorn (v0.34.3)
+- **HTTP客户端**: openai (v1.83.0)
+- **日志**: Python logging + 自定义JsonFormatter
+
+## 项目结构
+```
+.
+├── main.py                  # 主应用程序入口，包含所有API端点与任务调度
+├── config.py                # 配置与提示词，环境变量读取与校验
+├── document_processor.py    # 文档处理模块，负责文档分块与总结
+├── outline_generator.py     # 目录生成模块，生成1-4层级目录结构
+├── content_generator.py     # 内容生成模块，根据目录生成完整文档/补充文档
+├── logging_config.py        # 日志格式与logger设置
+├── requirements.txt         # 项目依赖
+├── uploads/                 # 上传文件存储目录
+├── template/                # Word模板文件存储目录
+└── output/                  # 生成文档输出目录
+```
+
+## 核心功能模块
+
+### 1. 文档处理 (document_processor.py)
+- **主要功能**: 
+  - 提取Word文档内容（包括段落和表格）
+  - 智能文本分块（基于段落和句子）
+  - 并行处理文本块生成摘要
+  - 生成综合总结（3000字内）
+- **关键方法**:
+  - `extract_text_from_docx()`: 提取文档文本
+  - `chunk_text()`: 文本分块
+  - `process_chunks_parallel()`: 并行处理
+  - `generate_final_summary()`: 生成最终总结
+
+### 2. 目录生成 (outline_generator.py)
+- **主要功能**:
+  - 基于文档总结生成1-4层级目录
+  - 支持自定义最大层级（会被校正到3-4层，以保证有效内容生成）
+  - 返回标准化的JSON格式目录
+  - 包含备用目录生成机制
+- **关键方法**:
+  - `generate_outline()`: 生成目录主方法（强制JSON输出与深度校验）
+  - `_standardize_bid_outline()`: 标准化投标目录结构
+  - `_get_max_depth() / _count_sections() / _validate_outline_richness()`: 深度与丰富度校验
+
+### 3. 内容生成 (content_generator.py)
+- **主要功能**:
+  - 根据目录结构生成章节内容
+  - 并行生成所有层级章节内容（Level 1/部分Level 2 不产出正文）
+  - 支持多种标题样式模板（A/B/C/D/E）
+  - 支持Word文档输出与纯文本提取
+  - 生成可下载的Word文档
+- **关键方法**:
+  - `generate_section_content()`: 生成单个章节内容
+  - `generate_all_sections_parallel()`: 并行生成所有章节
+  - `create_docx_from_template()`: 创建Word文档
+  - `generate_document()`: 从目录批量生成文档
+  - `generate_supplementary_document()`: 生成补充说明文档（含纯文本）
+
+### 4. 任务管理与服务 (main.py)
+- **主要功能**:
+  - 异步任务创建和管理
+  - 任务状态跟踪
+  - 结果存储和获取
+  - 自动清理过期任务
+  - CORS 允许跨域访问
+  - 生命周期中校验配置与初始化日志
+- **任务状态**: pending → processing → completed/failed
+
+## API 端点
+
+### 文档处理端点
+1. **POST /api/process-document**
+   - 上传并处理Word文档
+   - 返回任务ID
+   - 异步执行
+
+2. **POST /api/generate-outline**
+   - 根据总结生成目录
+   - 参数: summary, max_level（会被校正到 3-4）
+   - 返回任务ID
+
+3. **POST /api/generate-document**
+   - 生成完整文档
+   - 参数: summary, outline_json, style_template(A/B/C/D/E, 默认A)
+   - 返回任务ID
+
+4. **POST /api/generate-supplementary-document**
+   - 生成补充说明文档
+   - 参数: summary, user_request, style_template(A/B/C/D/E, 默认A)
+   - 返回任务ID
+
+### 任务管理端点
+5. **GET /api/task/{task_id}**
+   - 查询任务状态
+   - 返回: status, progress, message
+
+6. **GET /api/task/{task_id}/result**
+   - 获取任务结果
+   - 仅在任务完成后可用
+
+7. **GET /api/download-document/{filename}**
+   - 下载生成的文档
+
+## 配置管理
+- 使用环境变量或.env文件配置
+- 关键配置项（见 `config.py`）:
+  - `OPENAI_API_KEY`: API密钥
+  - `OPENAI_MODEL`: 默认 `deepseek-chat`
+  - `OPENAI_BASE_URL`: 默认 `https://api.deepseek.com/v1`
+  - 文档处理：`MAX_CHUNK_SIZE`(默认2048), `CHUNK_OVERLAP`(默认200)
+  - 并发：`MAX_CONCURRENT_REQUESTS`(默认10)
+  - 任务：`TASK_TIMEOUT`(默认3600), `TASK_RESULT_TTL`(默认86400)
+  - 服务：`HOST`(默认0.0.0.0), `PORT`(默认8000), `DEBUG`(默认True)
+  - 目录：`UPLOAD_DIR`(./uploads), `TEMPLATE_DIR`(./template), `OUTPUT_DIR`(./output)
+  - 日志：`APP_ENV`(development/production)
+
+## 开发规范
+
+### 1. 异步编程
+- 所有IO密集型操作使用async/await
+- 使用asyncio.Semaphore控制并发
+- 避免阻塞主事件循环
+
+### 2. 错误处理
+- 每个模块返回标准化的结果字典
+- 包含success字段和error信息
+- 使用try-except捕获所有异常
+ - 补充：目录生成强制返回JSON并进行深度与丰富度校验
+
+### 3. 文档处理
+- 支持.docx格式
+- 处理段落和表格内容
+- 智能分块避免内容截断
+
+### 4. AI生成内容
+- 使用系统提示词确保输出质量
+- 控制temperature参数（0.3-0.5）
+- 设置合理的max_tokens限制
+ - 章节内容两段式生成与续写，规范化输出<p>段落
+
+### 5. 任务管理
+- 任务超时时间: 3600秒
+- 结果保存时间: 86400秒
+- 定期清理过期任务
+ - 通过根路径 `/` 返回服务信息与端点列表
+ - 允许跨域（CORS 全允许）
+
+## 最佳实践
+
+### 1. 文件处理
+- 上传文件使用UUID命名避免冲突
+- 确保目录存在 before 写入
+- 及时清理临时文件
+
+### 2. API设计
+- RESTful风格
+- 统一的响应格式
+- 详细的错误信息
+
+### 3. 性能优化
+- 并行处理提高效率
+- 使用信号量控制并发数
+- 缓存重复使用的数据
+
+### 4. 安全考虑
+- 验证文件类型
+- 限制文件大小
+- 清理用户输入
+
+### 5. 代码组织
+- 模块化设计
+- 单一职责原则
+- 清晰的接口定义
+
+## 部署建议
+1. 使用环境变量管理敏感配置
+2. 设置合理的并发限制与超时清理
+3. 配置日志记录（见 `logging_config.py`，生产建议JSON/文件落盘）
+4. 监控任务队列状态
+5. 定期备份生成的文档
+6. 容器化：提供 `Dockerfile` 与 `docker-compose.yml`（挂载 `uploads`/`output`/`template`）
+
+## 注意事项
+1. OpenAI API调用有速率限制
+2. 大文档处理可能耗时较长
+3. 确保有足够的磁盘空间存储文档
+4. 定期清理uploads和output目录
+5. 监控API使用量和成本 
