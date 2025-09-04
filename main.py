@@ -439,7 +439,7 @@ async def generate_document(
       - summary (必填): 文档总结内容（至少10个字符）
       - outline_json (必填): 目录结构（JSON字符串）
       - style_template (可选): 样式模板 (A, B, C, D, E)，默认为 A
-      - checklist_file (可选): 清单文件，支持 .pdf .docx .doc .xlsx .xls
+      - checklist_file (可选): 清单文件，支持 .pdf .docx .xlsx .xls
 
     - 说明:
       - outline_json 必须是有效的 JSON；参数校验失败将返回 400
@@ -475,7 +475,7 @@ async def generate_document(
         if checklist_file and checklist_file.filename:
             allowed_exts = ('.pdf', '.docx', '.doc', '.xlsx', '.xls')
             if not checklist_file.filename.lower().endswith(allowed_exts):
-                raise HTTPException(status_code=400, detail="清单文件格式不支持，仅支持.pdf .docx .doc .xlsx .xls")
+                raise HTTPException(status_code=400, detail="清单文件格式不支持，仅支持.pdf .docx .xlsx .xls")
             try:
                 checklist_path = await save_upload_file(checklist_file)
                 # 使用 MarkItDown 将清单文件转换为 Markdown 文本
@@ -483,7 +483,7 @@ async def generate_document(
                 result_md = md.convert(checklist_path)
                 checklist_markdown = (result_md.text_content or "").strip()
                 if checklist_markdown:
-                    merged_summary = f"{summary}\n\n清单文件内容：\n{checklist_markdown}"
+                    merged_summary = f"{summary}\n\n完整清单文件内容(请根据当前章节标题和章节级别，选择性结合清单内容，进行整合，不需要完全照搬清单内容)：\n{checklist_markdown}"
                     print(merged_summary)
             except HTTPException:
                 raise

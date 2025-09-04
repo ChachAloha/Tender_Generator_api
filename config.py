@@ -104,7 +104,9 @@ class Prompts:
 {context_info}
 
 文档总结概要：
+---
 {summary}
+---
 
 内容要求：
 1. 内容专业、严谨、逻辑清晰、信息丰富
@@ -143,7 +145,9 @@ class Prompts:
 {context_info}
 
 文档总结概要：
+---
 {summary}
+---
 
 **已有的章节内容：**
 ---
