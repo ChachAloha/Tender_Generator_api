@@ -2,13 +2,14 @@ import os
 import uuid
 import time
 import logging
+import asyncio
 from contextlib import asynccontextmanager
 from typing import Dict, Optional, Any
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-
+from markitdown import MarkItDown
 from config import config, validate_config
 from document_processor import DocumentProcessor
 from outline_generator import OutlineGenerator
@@ -170,29 +171,30 @@ async def process_document_task(task_id: str, file_path: str, return_original: b
 
         if return_original:
             task_manager.update_task(task_id, progress=30, message="正在提取原文")
-            
             try:
-                # 使用 to_thread 避免阻塞事件循环
-                original_text = await asyncio.to_thread(document_processor.extract_text_from_docx, file_path)
+                # 使用 MarkItDown 转为 Markdown 文本（避免阻塞）
+                def convert_with_markitdown(path: str) -> str:
+                    from markitdown import MarkItDown  # type: ignore
+                    md = MarkItDown(enable_plugins=False)
+                    res = md.convert(path)
+                    return (res.text_content or "").strip()
+                original_markdown = await asyncio.to_thread(convert_with_markitdown, file_path)
             except Exception as e:
                 logger.error(f"任务 {task_id}: 提取原文失败 - {str(e)}")
                 task_manager.update_task(task_id, TaskStatus.FAILED, 100, f"提取原文失败: {str(e)}")
                 return
 
             task_manager.update_task(task_id, progress=80, message="原文提取完成")
-            
             session_id = str(uuid.uuid4())
-            summary_cache[session_id] = original_text
-            
+            summary_cache[session_id] = original_markdown
             task_result = {
                 "success": True,
                 "session_id": session_id,
-                "original_length": len(original_text),
+                "original_length": len(original_markdown),
                 "chunks_count": 0,
-                "final_summary": original_text,
-                "processing_info": {"summary_skipped": True}
+                "final_summary": original_markdown,
+                "processing_info": {"summary_skipped": True, "format": "markdown"}
             }
-            
             task_manager.save_result(task_id, task_result)
             task_manager.update_task(task_id, TaskStatus.COMPLETED, 100, "原文提取完成")
             logger.info(f"任务 {task_id}: 原文提取成功")
@@ -476,10 +478,15 @@ async def generate_document(
                 raise HTTPException(status_code=400, detail="清单文件格式不支持，仅支持.pdf .docx .doc .xlsx .xls")
             try:
                 checklist_path = await save_upload_file(checklist_file)
-                # 使用文档处理器解析任意格式
-                checklist_text = document_processor.extract_text_from_any(checklist_path)
-                if checklist_text and checklist_text.strip():
-                    merged_summary = f"{summary}\n\n清单文件内容（供参考整合，不直接照搬）：\n{checklist_text}"
+                # 使用 MarkItDown 将清单文件转换为 Markdown 文本
+                md = MarkItDown(enable_plugins=False)
+                result_md = md.convert(checklist_path)
+                checklist_markdown = (result_md.text_content or "").strip()
+                if checklist_markdown:
+                    merged_summary = f"{summary}\n\n清单文件内容：\n{checklist_markdown}"
+                    print(merged_summary)
+            except HTTPException:
+                raise
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"清单文件解析失败: {str(e)}")
         

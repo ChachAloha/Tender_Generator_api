@@ -1,113 +1,15 @@
 import asyncio
 import re
 from typing import List, Dict, Any
-from docx import Document
 import openai
 from config import config, prompts
-
+from markitdown import MarkItDown
 class DocumentProcessor:
     def __init__(self):
         self.client = openai.AsyncOpenAI(
             api_key=config.OPENAI_API_KEY,
             base_url=config.OPENAI_BASE_URL
         )
-    
-    def extract_text_from_docx(self, file_path: str) -> str:
-        """从docx文件中提取文本内容"""
-        try:
-            doc = Document(file_path)
-            text_content = []
-            
-            for paragraph in doc.paragraphs:
-                if paragraph.text.strip():
-                    text_content.append(paragraph.text.strip())
-            
-            # 处理表格内容
-            for table in doc.tables:
-                for row in table.rows:
-                    row_text = []
-                    for cell in row.cells:
-                        if cell.text.strip():
-                            row_text.append(cell.text.strip())
-                    if row_text:
-                        text_content.append(" | ".join(row_text))
-            
-            return "\n".join(text_content)
-        except Exception as e:
-            raise Exception(f"文档读取失败: {str(e)}")
-
-    def extract_text_from_pdf(self, file_path: str) -> str:
-        """从PDF文件中提取文本内容"""
-        try:
-            # 延迟导入以避免在未安装依赖时阻塞应用启动
-            import pdfplumber  # type: ignore
-            texts: List[str] = []
-            with pdfplumber.open(file_path) as pdf:
-                for page in pdf.pages:
-                    page_text = page.extract_text() or ""
-                    if page_text.strip():
-                        texts.append(page_text.strip())
-            return "\n".join(texts)
-        except ImportError:
-            raise Exception("缺少pdfplumber依赖，无法解析PDF。请安装pdfplumber或移除该文件。")
-        except Exception as e:
-            raise Exception(f"PDF读取失败: {str(e)}")
-
-    def extract_text_from_excel(self, file_path: str) -> str:
-        """从Excel文件（.xlsx/.xls）中提取文本内容"""
-        try:
-            if file_path.lower().endswith('.xlsx'):
-                import openpyxl  # type: ignore
-                wb = openpyxl.load_workbook(file_path, data_only=True)
-                texts: List[str] = []
-                for sheet_name in wb.sheetnames:
-                    ws = wb[sheet_name]
-                    texts.append(f"[工作表] {sheet_name}")
-                    for row in ws.iter_rows(values_only=True):
-                        row_values = [str(c).strip() for c in row if c is not None and str(c).strip()]
-                        if row_values:
-                            texts.append(" | ".join(row_values))
-                return "\n".join(texts)
-            else:
-                import xlrd  # type: ignore
-                book = xlrd.open_workbook(file_path)
-                texts: List[str] = []
-                for sheet in book.sheets():
-                    texts.append(f"[工作表] {sheet.name}")
-                    for r in range(sheet.nrows):
-                        row_values = [str(v).strip() for v in sheet.row_values(r) if str(v).strip()]
-                        if row_values:
-                            texts.append(" | ".join(row_values))
-                return "\n".join(texts)
-        except ImportError:
-            raise Exception("缺少openpyxl/xlrd依赖，无法解析Excel。请安装openpyxl和xlrd或移除该文件。")
-        except Exception as e:
-            raise Exception(f"Excel读取失败: {str(e)}")
-
-    def extract_text_from_doc(self, file_path: str) -> str:
-        """从旧版Word .doc 文件中提取文本内容（使用textract，可能依赖系统工具）"""
-        try:
-            import textract  # type: ignore
-            raw: bytes = textract.process(file_path)
-            text = raw.decode('utf-8', errors='ignore').strip()
-            return text
-        except ImportError:
-            raise Exception("缺少textract依赖，无法解析.doc。请安装textract或将文件转换为.docx。")
-        except Exception as e:
-            raise Exception(f".doc读取失败: {str(e)}")
-
-    def extract_text_from_any(self, file_path: str) -> str:
-        """根据文件后缀提取文本内容，支持 .pdf .docx .doc .xlsx .xls"""
-        lower = file_path.lower()
-        if lower.endswith('.pdf'):
-            return self.extract_text_from_pdf(file_path)
-        if lower.endswith('.docx'):
-            return self.extract_text_from_docx(file_path)
-        if lower.endswith('.doc'):
-            return self.extract_text_from_doc(file_path)
-        if lower.endswith('.xlsx') or lower.endswith('.xls'):
-            return self.extract_text_from_excel(file_path)
-        raise Exception("不支持的文件类型，仅支持.pdf .docx .doc .xlsx .xls")
     
     def chunk_text(self, text: str) -> List[str]:
         """将文本分块，优化分块策略"""
@@ -224,8 +126,9 @@ class DocumentProcessor:
     async def process_document(self, file_path: str) -> Dict[str, Any]:
         """完整的文档处理流程"""
         try:
-            # 1. 提取文本
-            text_content = self.extract_text_from_docx(file_path)
+            md = MarkItDown(enable_plugins=False)
+            md_result = md.convert(file_path)
+            text_content = (md_result.text_content or "").strip()
             if not text_content.strip():
                 raise Exception("文档内容为空")
             

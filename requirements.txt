@@ -27,7 +27,4 @@ typing_extensions==4.14.0
 uvicorn==0.34.3
 wheel==0.45.1
 
-pdfplumber==0.11.4
-openpyxl==3.1.5
-xlrd==2.0.1
-textract==1.6.5
+markitdown[all]==0.1.3

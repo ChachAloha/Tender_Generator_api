@@ -93,7 +93,7 @@ secrets*/
 secrets.*
 
 # Optional project outputs (uncomment if applicable)
-# data/
+uploads
 outputs/
 # artifacts/
 # checkpoints/
