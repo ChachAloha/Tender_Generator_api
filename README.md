@@ -100,9 +100,15 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 - **URL**: `/api/generate-document`
 - **方法**: POST
+- **Content-Type**: multipart/form-data
 - **参数**: 
-  - `summary`: 文档总结内容
-  - `outline_json`: 目录结构（JSON格式）
+  - `summary` (必填): 文档总结内容（至少10个字符）
+  - `outline_json` (必填): 目录结构（JSON字符串）
+  - `style_template` (可选): 样式模板，`A`/`B`/`C`/`D`/`E`，默认 `A`
+  - `checklist_file` (可选): 清单文件，支持 `.pdf` `.docx` `.doc` `.xlsx` `.xls`
+- **说明**:
+  - `outline_json` 必须是有效的 JSON；参数校验失败将返回 400
+  - 若提供 `checklist_file`，其解析出的文本会与 `summary` 合并用于生成（仅作参考整合，不会原样拷贝）
 - **返回**:
   ```json
   {

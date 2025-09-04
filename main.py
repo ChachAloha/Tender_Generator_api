@@ -2,9 +2,8 @@ import os
 import uuid
 import time
 import logging
-import logging.config
 from contextlib import asynccontextmanager
-from typing import Dict, Optional, List, Any
+from typing import Dict, Optional, Any
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,7 +31,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="文档处理与生成API",
     description="提供文档总结、目录生成和内容生成功能的API服务",
-    version="1.1.0",
+    version="1.2.0",
     lifespan=lifespan
 )
 
@@ -163,11 +162,41 @@ async def save_upload_file(upload_file: UploadFile) -> str:
 # 会话存储
 summary_cache = {}
 
-async def process_document_task(task_id: str, file_path: str):
+async def process_document_task(task_id: str, file_path: str, return_original: bool = True):
     """文档处理后台任务"""
     try:
-        logger.info(f"任务 {task_id}: 开始处理文档 {file_path}")
+        logger.info(f"任务 {task_id}: 开始处理文档 {file_path}, return_original={return_original}")
         task_manager.update_task(task_id, TaskStatus.PROCESSING, 10, "开始处理文档")
+
+        if return_original:
+            task_manager.update_task(task_id, progress=30, message="正在提取原文")
+            
+            try:
+                # 使用 to_thread 避免阻塞事件循环
+                original_text = await asyncio.to_thread(document_processor.extract_text_from_docx, file_path)
+            except Exception as e:
+                logger.error(f"任务 {task_id}: 提取原文失败 - {str(e)}")
+                task_manager.update_task(task_id, TaskStatus.FAILED, 100, f"提取原文失败: {str(e)}")
+                return
+
+            task_manager.update_task(task_id, progress=80, message="原文提取完成")
+            
+            session_id = str(uuid.uuid4())
+            summary_cache[session_id] = original_text
+            
+            task_result = {
+                "success": True,
+                "session_id": session_id,
+                "original_length": len(original_text),
+                "chunks_count": 0,
+                "final_summary": original_text,
+                "processing_info": {"summary_skipped": True}
+            }
+            
+            task_manager.save_result(task_id, task_result)
+            task_manager.update_task(task_id, TaskStatus.COMPLETED, 100, "原文提取完成")
+            logger.info(f"任务 {task_id}: 原文提取成功")
+            return
         
         # 处理文档
         result = await document_processor.process_document(file_path)
@@ -198,7 +227,7 @@ async def process_document_task(task_id: str, file_path: str):
     except Exception as e:
         logger.exception(f"任务 {task_id}: 处理文档时发生未捕获的异常")
         task_manager.update_task(task_id, TaskStatus.FAILED, 100, f"处理失败: {str(e)}")
-
+        
 async def generate_outline_task(task_id: str, summary_content: str, max_level: int = 4):
     """目录生成后台任务"""
     try:
@@ -298,17 +327,22 @@ async def generate_supplementary_document_task(task_id: str, summary: str, user_
         task_manager.update_task(task_id, TaskStatus.FAILED, 100, f"生成失败: {str(e)}")
 
 @app.post("/api/process-document")
-async def process_document(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+async def process_document(
+    background_tasks: BackgroundTasks, 
+    file: UploadFile = File(...),
+    return_original: bool = Form(True, description="如果为true，则直接返回文档原文，跳过总结")
+):
     """
     上传Word文档，将其分块并生成总结（异步任务）
     
     - **file**: Word文档文件（.docx格式）
+    - **return_original**: 如果为true，则直接返回文档原文，跳过总结
     
     返回：
     - **task_id**: 任务ID，用于查询进度
     """
     try:
-        logger.info(f"收到文档处理请求: {file.filename}")
+        logger.info(f"收到文档处理请求: {file.filename}, return_original={return_original}")
         # 清理过期任务
         task_manager.cleanup()
         
@@ -325,7 +359,7 @@ async def process_document(background_tasks: BackgroundTasks, file: UploadFile =
         task_id = task_manager.create_task()
         
         # 启动后台任务
-        background_tasks.add_task(process_document_task, task_id, file_path)
+        background_tasks.add_task(process_document_task, task_id, file_path, return_original)
         
         return {
             "success": True,
@@ -396,13 +430,21 @@ async def generate_document(
 ):
     """
     根据总结内容和目录结构生成完整文档（异步任务）
-    
-    - **summary**: 文档总结内容
-    - **outline_json**: 目录结构（JSON格式）
-    - **style_template**: 样式模板 (A, B, C, D, E)，默认为A
-    
+
+    - Content-Type: multipart/form-data
+
+    - 参数:
+      - summary (必填): 文档总结内容（至少10个字符）
+      - outline_json (必填): 目录结构（JSON字符串）
+      - style_template (可选): 样式模板 (A, B, C, D, E)，默认为 A
+      - checklist_file (可选): 清单文件，支持 .pdf .docx .doc .xlsx .xls
+
+    - 说明:
+      - outline_json 必须是有效的 JSON；参数校验失败将返回 400
+      - 若提供 checklist_file，其解析出的文本会与 summary 合并用于生成（仅作参考整合，不会原样拷贝）
+
     返回：
-    - **task_id**: 任务ID，用于查询进度
+    - task_id: 任务ID，用于查询进度
     """
     try:
         logger.info(f"收到文档生成请求, style_template={style_template}")
