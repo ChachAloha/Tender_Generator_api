@@ -8,9 +8,6 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-# 4. 安装系统依赖 (如果需要的话，例如 libpq-dev 用于 postgresql)
-# RUN apt-get update && apt-get install -y ...
-
 # 5. 复制依赖文件并安装
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.ustc.edu.cn/pypi/simple

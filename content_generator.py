@@ -92,7 +92,7 @@ class ContentGenerator:
                     {"role": "system", "content": "你是一个专业的内容创作者。请严格按照用户要求的格式输出内容，使用<p></p>标记段落，不要使用其他任何格式。"},
                     {"role": "user", "content": prompt1}
                 ],
-                max_tokens=4096,
+                max_tokens=8192,
                 temperature=0.3
             )
             
@@ -127,7 +127,7 @@ class ContentGenerator:
                     {"role": "system", "content": "你是一个专业的内容创作者，擅长在已有内容的基础上进行扩写和续写。请严格按照用户要求的格式输出内容，使用<p></p>标记段落，不要使用其他任何格式。"},
                     {"role": "user", "content": prompt2}
                 ],
-                max_tokens=4096,
+                max_tokens=8192,
                 temperature=0.4
             )
 
@@ -439,7 +439,7 @@ class ContentGenerator:
                     {"role": "system", "content": "你是一个专业的文档架构师，严格按照JSON格式输出。"},
                     {"role": "user", "content": supplementary_outline_prompt}
                 ],
-                max_tokens=2048,
+                max_tokens=8192,
                 temperature=0.1,
                 response_format={"type": "json_object"}
             )
@@ -516,7 +516,7 @@ class ContentGenerator:
                     {"role": "system", "content": "你是一个专业的内容创作者。请严格按照用户要求的格式输出内容，使用<p></p>标记段落。"},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=1024,
+                max_tokens=8192,
                 temperature=0.3
             )
             
