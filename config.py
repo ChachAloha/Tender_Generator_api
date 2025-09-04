@@ -28,7 +28,6 @@ class Config:
     
     # 上传文件配置
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "./uploads")
-    TEMPLATE_DIR: str = os.getenv("TEMPLATE_DIR", "./template")
     OUTPUT_DIR: str = os.getenv("OUTPUT_DIR", "./output")
 
     # 新增：日志配置
@@ -285,5 +284,4 @@ def validate_config():
     
     # 创建必要的目录
     os.makedirs(config.UPLOAD_DIR, exist_ok=True)
-    os.makedirs(config.TEMPLATE_DIR, exist_ok=True)
     os.makedirs(config.OUTPUT_DIR, exist_ok=True) 

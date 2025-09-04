@@ -27,7 +27,6 @@ alwaysApply: false
 ├── logging_config.py        # 日志格式与logger设置
 ├── requirements.txt         # 项目依赖
 ├── uploads/                 # 上传文件存储目录
-├── template/                # Word模板文件存储目录
 └── output/                  # 生成文档输出目录
 ```
 
@@ -125,7 +124,7 @@ alwaysApply: false
   - 并发：`MAX_CONCURRENT_REQUESTS`(默认10)
   - 任务：`TASK_TIMEOUT`(默认3600), `TASK_RESULT_TTL`(默认86400)
   - 服务：`HOST`(默认0.0.0.0), `PORT`(默认8000), `DEBUG`(默认True)
-  - 目录：`UPLOAD_DIR`(./uploads), `TEMPLATE_DIR`(./template), `OUTPUT_DIR`(./output)
+  - 目录：`UPLOAD_DIR`(./uploads),`OUTPUT_DIR`(./output)
   - 日志：`APP_ENV`(development/production)
 
 ## 开发规范
@@ -192,7 +191,7 @@ alwaysApply: false
 3. 配置日志记录（见 `logging_config.py`，生产建议JSON/文件落盘）
 4. 监控任务队列状态
 5. 定期备份生成的文档
-6. 容器化：提供 `Dockerfile` 与 `docker-compose.yml`（挂载 `uploads`/`output`/`template`）
+6. 容器化：提供 `Dockerfile` 与 `docker-compose.yml`（挂载 `uploads`/`output`）
 
 ## 注意事项
 1. OpenAI API调用有速率限制

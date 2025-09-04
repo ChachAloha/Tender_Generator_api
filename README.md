@@ -103,7 +103,6 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 - **参数**: 
   - `summary`: 文档总结内容
   - `outline_json`: 目录结构（JSON格式）
-  - `template_file`: (可选) Word文档模板文件
 - **返回**:
   ```json
   {
@@ -158,7 +157,6 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ├── content_generator.py     # 内容生成模块
 ├── requirements.txt         # 依赖包列表
 ├── uploads/                 # 上传文件存储目录
-├── template/                # 模板文件存储目录
 └── output/                  # 生成文档输出目录
 ```
 
@@ -180,5 +178,4 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 - `PORT`: 服务端口，默认8000
 - `DEBUG`: 调试模式，默认True
 - `UPLOAD_DIR`: 上传目录，默认"./uploads"
-- `TEMPLATE_DIR`: 模板目录，默认"./template"
 - `OUTPUT_DIR`: 输出目录，默认"./output" 

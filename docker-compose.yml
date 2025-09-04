@@ -9,7 +9,6 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./output:/app/output
-      - ./template:/app/template
     logging:
       driver: "json-file"
       options:

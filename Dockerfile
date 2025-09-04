@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.ustc.edu.c
 COPY . .
 
 # 7. 创建应用需要的目录
-RUN mkdir -p uploads template output
+RUN mkdir -p uploads output
 
 # 8. 暴露应用程序运行的端口
 EXPOSE 8000
