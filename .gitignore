@@ -94,7 +94,7 @@ secrets.*
 
 # Optional project outputs (uncomment if applicable)
 # data/
-# outputs/
+outputs/
 # artifacts/
 # checkpoints/
 
