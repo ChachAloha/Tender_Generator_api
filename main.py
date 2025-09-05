@@ -484,7 +484,7 @@ async def generate_document(
                 checklist_markdown = (result_md.text_content or "").strip()
                 if checklist_markdown:
                     merged_summary = f"{summary}\n\n完整清单文件内容(请根据当前章节标题和章节级别，选择性结合清单内容，进行整合，不需要完全照搬清单内容)：\n{checklist_markdown}"
-                    print(merged_summary)
+                    # print(merged_summary)
             except HTTPException:
                 raise
             except Exception as e:

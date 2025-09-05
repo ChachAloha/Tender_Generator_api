@@ -24,7 +24,7 @@ class Config:
     # 服务配置
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", "8000"))
-    DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     
     # 上传文件配置
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "./uploads")
