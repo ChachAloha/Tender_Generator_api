@@ -17,16 +17,27 @@ class OutlineGenerator:
             if current_level >= max_level:
                 return []
             
-            num_children = 3 if current_level < 2 else 2
+            next_level = current_level + 1
+            # 为了引导模型生成更稳定的结构，不同层级给出更明确的示例数量
+            if next_level == 1:
+                num_children = 3  # 示例包含3个一级章节
+            elif next_level == 2:
+                num_children = 4  # 每个一级章节下示例4个二级
+            elif next_level == 3:
+                num_children = 4  # 每个二级章节下示例4个三级
+            elif next_level == 4:
+                num_children = 3  # 每个三级章节下示例3个四级
+            else:
+                num_children = 0
             
             nodes = []
             for _ in range(num_children):
                 node = {
-                    "level": current_level + 1,
+                    "level": next_level,
                     "title": "xxx",
                 }
-                if current_level + 1 < max_level:
-                    node["children"] = create_level(current_level + 1)
+                if next_level < max_level:
+                    node["children"] = create_level(next_level)
                 nodes.append(node)
             return nodes
 
@@ -54,20 +65,28 @@ class OutlineGenerator:
             # 动态生成JSON格式示例
             json_example = self._generate_json_example(max_level)
 
-            prompt = prompts.GENERATE_OUTLINE.format(
-                max_level=max_level,
-                json_example=json_example,
-                summary_content=summary_content
-            )
+            # 根据层级选择更确定性的提示词
+            if max_level == 3:
+                prompt = prompts.GENERATE_OUTLINE_3.format(
+                    json_example=json_example,
+                    summary_content=summary_content
+                )
+            else:
+                prompt = prompts.GENERATE_OUTLINE_4.format(
+                    json_example=json_example,
+                    summary_content=summary_content
+                )
+
+            system_prompt = self._build_system_prompt(max_level)
             
             response = await self.client.chat.completions.create(
                 model=config.OPENAI_MODEL,
                 messages=[
-                    {"role": "system", "content": f"你是投标文件编制专家。你的任务是生成投标技术方案目录。必须生成深度达到{max_level}层的完整目录结构。特别注意：第3-4级目录必须丰富详细，每个第2级章节下至少3-5个第3级子章节，每个第3级章节下至少2-4个第4级子章节。确保第3-4级标题具体、可操作，避免宽泛表述。只返回JSON格式，不要有任何其他文字。"},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=8192,
-                temperature=0.3,
+                temperature=0.1,
                 response_format={"type": "json_object"}  # 强制JSON格式
             )
             
@@ -77,7 +96,8 @@ class OutlineGenerator:
             try:
                 outline_data = json.loads(content)
                 
-                # 验证和标准化数据结构
+                # 验证和标准化数据结构、
+                # print(f"原始目录结构: {outline_data}")
                 standardized_outline = self._standardize_bid_outline(outline_data, max_level)
                 
                 # 验证是否达到要求的层级深度
@@ -126,7 +146,8 @@ class OutlineGenerator:
 
             for i, item in enumerate(items):
                 if isinstance(item, dict):
-                    level = item.get("level", next_level)
+                    # 强制使用真实层级，忽略输入中的 level 值，保证层级与深度一致
+                    level = next_level
                     if level > max_level:
                         continue
                     
@@ -173,6 +194,35 @@ class OutlineGenerator:
             max_overall_depth = max(max_overall_depth, get_item_depth(item))
         
         return max_overall_depth
+
+    def _build_system_prompt(self, max_level: int) -> str:
+        """构建更严格和确定性的System提示，确保目录层级稳定且只返回JSON"""
+        if max_level == 3:
+            return (
+                "你是投标文件编制专家。请严格遵循以下规则生成目录，并且只返回一个有效的JSON对象：\n"
+                "- 输出格式：只能是一个JSON对象，包含 'title' 和 'outline' 两个键；不得包含任何其他文本、注释或Markdown。\n"
+                "- 层级深度：必须且仅生成3层（level=1/2/3）。严禁出现第4级或更深层级。\n"
+                "- 结构约束：\n"
+                "  * 每个 level=1 节点下包含 3-5 个 level=2 子节点；\n"
+                "  * 每个 level=2 节点下包含 3-5 个 level=3 子节点；\n"
+                "  * 所有 level=3 节点的 children 必须为 []。\n"
+                "  * 严禁线性结构：任意节点的 children 数量不得为 1。\n"
+                "- 字段要求：'outline' 中每个节点必须包含 'level'（数字1/2/3）、'title'（非空字符串）、'children'（数组）。\n"
+                "- 标题规范：标题不含编号（如“第一章”“1.1”“1.1.1”），避免'其他'、'相关内容'等模糊表述。\n"
+            )
+        else:
+            return (
+                "你是投标文件编制专家。请严格遵循以下规则生成目录，并且只返回一个有效的JSON对象：\n"
+                "- 输出格式：只能是一个JSON对象，包含 'title' 和 'outline' 两个键；不得包含任何其他文本、注释或Markdown。\n"
+                "- 层级深度：必须且仅生成4层（level=1/2/3/4）。\n"
+                "- 结构约束：\n"
+                "  * 每个 level=1 节点下包含 3-5 个 level=2 子节点；\n"
+                "  * 每个 level=2 节点下包含 3-5 个 level=3 子节点；\n"
+                "  * 每个 level=3 节点下包含 2-4 个 level=4 子节点；\n"
+                "  * 严禁线性结构：任意节点的 children 数量不得为 1。\n"
+                "- 字段要求：'outline' 中每个节点必须包含 'level'（数字1/2/3/4）、'title'（非空字符串）、'children'（数组）。\n"
+                "- 标题规范：标题不含编号（如“第一章”“1.1”“1.1.1”），避免'其他'、'相关内容'等模糊表述。\n"
+            )
     
     def _validate_outline_richness(self, outline_data: Dict, max_level: int) -> Dict[str, Any]:
         """验证目录结构的丰富性，特别是3-4级"""

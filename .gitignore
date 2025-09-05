@@ -93,8 +93,9 @@ secrets*/
 secrets.*
 
 # Optional project outputs (uncomment if applicable)
-uploads/
-outputs/
+uploads
+output
+__pycache__
 # checkpoints/
 
 

@@ -335,9 +335,9 @@ async def process_document(
     return_original: bool = Form(True, description="如果为true，则直接返回文档原文，跳过总结")
 ):
     """
-    上传Word文档，将其分块并生成总结（异步任务）
+    上传文档（支持 .pdf / .docx），将其分块并生成总结（异步任务）
     
-    - **file**: Word文档文件（.docx格式）
+    - **file**: 文档文件（支持 .pdf、.docx）
     - **return_original**: 如果为true，则直接返回文档原文，跳过总结
     
     返回：
@@ -351,8 +351,9 @@ async def process_document(
         # 检查文件类型
         if not file.filename:
             raise HTTPException(status_code=400, detail="文件名不能为空")
-        if not file.filename.endswith(('.docx')):
-            raise HTTPException(status_code=400, detail="只支持.docx格式的Word文档")
+        allowed_exts = ('.pdf', '.docx')
+        if not file.filename.lower().endswith(allowed_exts):
+            raise HTTPException(status_code=400, detail="仅支持.pdf或.docx格式的文档")
         
         # 保存文件
         file_path = await save_upload_file(file)
