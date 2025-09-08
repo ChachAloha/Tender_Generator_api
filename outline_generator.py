@@ -1,14 +1,17 @@
 import json
 import uuid
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import openai
 from config import config, prompts
 
 class OutlineGenerator:
-    def __init__(self):
+    def __init__(self, model_config: Optional[Dict[str, str]] = None):
+        api_key = (model_config or {}).get("api_key", config.OPENAI_API_KEY)
+        base_url = (model_config or {}).get("base_url", config.OPENAI_BASE_URL)
+        self.model_name = (model_config or {}).get("model", config.OPENAI_MODEL)
         self.client = openai.AsyncOpenAI(
-            api_key=config.OPENAI_API_KEY,
-            base_url=config.OPENAI_BASE_URL
+            api_key=api_key,
+            base_url=base_url
         )
     
     def _generate_json_example(self, max_level: int) -> str:
@@ -80,7 +83,7 @@ class OutlineGenerator:
             system_prompt = self._build_system_prompt(max_level)
             
             response = await self.client.chat.completions.create(
-                model=config.OPENAI_MODEL,
+                model=self.model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}

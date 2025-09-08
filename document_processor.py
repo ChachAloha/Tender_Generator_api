@@ -1,14 +1,17 @@
 import asyncio
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import openai
 from config import config, prompts
 from markitdown import MarkItDown
 class DocumentProcessor:
-    def __init__(self):
+    def __init__(self, model_config: Optional[Dict[str, str]] = None):
+        api_key = (model_config or {}).get("api_key", config.OPENAI_API_KEY)
+        base_url = (model_config or {}).get("base_url", config.OPENAI_BASE_URL)
+        self.model_name = (model_config or {}).get("model", config.OPENAI_MODEL)
         self.client = openai.AsyncOpenAI(
-            api_key=config.OPENAI_API_KEY,
-            base_url=config.OPENAI_BASE_URL
+            api_key=api_key,
+            base_url=base_url
         )
     
     def chunk_text(self, text: str) -> List[str]:
@@ -66,7 +69,7 @@ class DocumentProcessor:
             prompt = prompts.SUMMARIZE_CHUNK.format(chunk=chunk)
             
             response = await self.client.chat.completions.create(
-                model=config.OPENAI_MODEL,
+                model=self.model_name,
                 messages=[
                     {"role": "system", "content": "你是一名专业的投标专员，任务是精准地从标书文件中提取和总结关键信息。"},
                     {"role": "user", "content": prompt}
@@ -109,7 +112,7 @@ class DocumentProcessor:
             prompt = prompts.GENERATE_FINAL_SUMMARY.format(combined_summaries=combined_summaries)
             
             response = await self.client.chat.completions.create(
-                model=config.OPENAI_MODEL,
+                model=self.model_name,
                 messages=[
                     {"role": "system", "content": "你是一名资深的投标策略师，擅长将零散信息整合成结构化的分析报告。"},
                     {"role": "user", "content": prompt}

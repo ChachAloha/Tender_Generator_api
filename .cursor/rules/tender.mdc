@@ -1,17 +1,18 @@
 ---
+description: 当你想快速的了解项目概况时可以读取该文件
 alwaysApply: false
 ---
 # Tender Generator API - Cursor Rules
 
 ## 项目概述
 这是一个基于 FastAPI 和 OpenAI API 开发的文档处理与生成服务，专门用于处理招标文档（Tender Documents）。系统提供文档总结、目录结构生成、内容生成以及补充文档生成功能，所有处理任务都通过异步方式执行。
+当前版本：v1.3.0
 
 ## 技术栈
 - **框架**: FastAPI (v0.115.x)
 - **AI模型**: OpenAI API (默认 deepseek-chat via `https://api.deepseek.com/v1`)
 - **文档处理**: python-docx (v1.1.2)
 - **异步处理**: asyncio
-- **模板引擎**: Jinja2 (v3.1.6)
 - **服务器**: uvicorn (v0.34.3)
 - **HTTP客户端**: openai (v1.83.0)
 - **日志**: Python logging + 自定义JsonFormatter
@@ -19,7 +20,15 @@ alwaysApply: false
 ## 项目结构
 ```
 .
-├── main.py                  # 主应用程序入口，包含所有API端点与任务调度
+├── main.py                  # 主应用入口：初始化、CORS、lifespan、注册路由
+├── routers/                 # 路由分组（按领域划分）
+│   ├── processing.py        # 文档处理/目录/内容/补充文档 端点
+│   ├── tasks.py             # 任务状态与结果查询端点
+│   ├── downloads.py         # 文档下载端点
+│   ├── model_configs.py     # 模型配置管理端点
+│   └── root.py              # 根路径服务信息端点
+├── services/                # 业务服务层
+│   └── tasks.py             # 任务管理器与后台任务实现
 ├── config.py                # 配置与提示词，环境变量读取与校验
 ├── document_processor.py    # 文档处理模块，负责文档分块与总结
 ├── outline_generator.py     # 目录生成模块，生成1-4层级目录结构
@@ -69,14 +78,16 @@ alwaysApply: false
   - `generate_document()`: 从目录批量生成文档
   - `generate_supplementary_document()`: 生成补充说明文档（含纯文本）
 
-### 4. 任务管理与服务 (main.py)
-- **主要功能**:
-  - 异步任务创建和管理
-  - 任务状态跟踪
-  - 结果存储和获取
-  - 自动清理过期任务
-  - CORS 允许跨域访问
-  - 生命周期中校验配置与初始化日志
+### 4. 任务管理与服务 (services/tasks.py) 与应用初始化 (main.py)
+- **services/tasks.py**:
+  - 提供 `TaskManager` 与 `TaskStatus`
+  - 实现后台任务：`process_document_task` / `generate_outline_task` / `generate_document_task` / `generate_supplementary_document_task`
+  - 统一的任务创建、状态更新、结果保存与定期清理
+- **main.py**:
+  - lifespan 中校验配置、初始化 SQLite 并将 `model_config_db_path` 存入 `app.state`
+  - 配置 CORS
+  - 注册分组路由：processing、tasks、downloads、model-configs、root
+  - 不再直接包含具体端点与任务实现
 - **任务状态**: pending → processing → completed/failed
 
 ## API 端点
@@ -102,7 +113,7 @@ alwaysApply: false
    - 参数: summary, user_request, style_template(A/B/C/D/E, 默认A)
    - 返回任务ID
 
-### 任务管理端点
+### 任务管理端点（routers/tasks.py）
 5. **GET /api/task/{task_id}**
    - 查询任务状态
    - 返回: status, progress, message
@@ -169,6 +180,7 @@ alwaysApply: false
 - RESTful风格
 - 统一的响应格式
 - 详细的错误信息
+ - 在路由中从 `request.app.state.model_config_db_path` 读取 DB 路径，并传递给后台任务
 
 ### 3. 性能优化
 - 并行处理提高效率
@@ -181,9 +193,9 @@ alwaysApply: false
 - 清理用户输入
 
 ### 5. 代码组织
-- 模块化设计
-- 单一职责原则
-- 清晰的接口定义
+- 路由分层：`routers/` 按领域分组；`services/` 存放业务逻辑
+- 单一职责：路由只负责参数校验与调度，服务负责实现
+- 避免循环依赖：后台任务从路由传入 `db_path`（`request.app.state.model_config_db_path`）
 
 ## 部署建议
 1. 使用环境变量管理敏感配置

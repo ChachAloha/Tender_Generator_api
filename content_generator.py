@@ -9,10 +9,13 @@ from docx.oxml.ns import qn
 from config import config, prompts
 
 class ContentGenerator:
-    def __init__(self):
+    def __init__(self, model_config: Optional[Dict[str, str]] = None):
+        api_key = (model_config or {}).get("api_key", config.OPENAI_API_KEY)
+        base_url = (model_config or {}).get("base_url", config.OPENAI_BASE_URL)
+        self.model_name = (model_config or {}).get("model", config.OPENAI_MODEL)
         self.client = openai.AsyncOpenAI(
-            api_key=config.OPENAI_API_KEY,
-            base_url=config.OPENAI_BASE_URL
+            api_key=api_key,
+            base_url=base_url
         )
     
     def _flatten_outline_to_sections(self, outline_data: Dict) -> List[Dict]:
@@ -87,7 +90,7 @@ class ContentGenerator:
             )
             
             response1 = await self.client.chat.completions.create(
-                model=config.OPENAI_MODEL,
+                model=self.model_name,
                 messages=[
                     {"role": "system", "content": "你是一个专业的内容创作者。请严格按照用户要求的格式输出内容，使用<p></p>标记段落，不要使用其他任何格式。"},
                     {"role": "user", "content": prompt1}
@@ -122,7 +125,7 @@ class ContentGenerator:
             )
 
             response2 = await self.client.chat.completions.create(
-                model=config.OPENAI_MODEL,
+                model=self.model_name,
                 messages=[
                     {"role": "system", "content": "你是一个专业的内容创作者，擅长在已有内容的基础上进行扩写和续写。请严格按照用户要求的格式输出内容，使用<p></p>标记段落，不要使用其他任何格式。"},
                     {"role": "user", "content": prompt2}
@@ -434,7 +437,7 @@ class ContentGenerator:
             )
             
             response = await self.client.chat.completions.create(
-                model=config.OPENAI_MODEL,
+                model=self.model_name,
                 messages=[
                     {"role": "system", "content": "你是一个专业的文档架构师，严格按照JSON格式输出。"},
                     {"role": "user", "content": supplementary_outline_prompt}
@@ -511,7 +514,7 @@ class ContentGenerator:
                 full_path=full_path
             )
             response = await self.client.chat.completions.create(
-                model=config.OPENAI_MODEL,
+                model=self.model_name,
                 messages=[
                     {"role": "system", "content": "你是一个专业的内容创作者。请严格按照用户要求的格式输出内容，使用<p></p>标记段落。"},
                     {"role": "user", "content": prompt}

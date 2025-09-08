@@ -6,9 +6,10 @@ load_dotenv()
 
 class Config:
     # OpenAI API配置
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "sk-d44269bc154944f0b35891086038c2d0")
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "deepseek-chat")
-    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "https://api.deepseek.com/v1")
+    # 环境变量提供默认值；若DB中存在激活配置，将在运行时覆盖
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "")
+    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "")
     
     # 文档处理配置
     MAX_CHUNK_SIZE: int = int(os.getenv("MAX_CHUNK_SIZE", "2048"))
@@ -354,9 +355,7 @@ prompts = Prompts()
 
 # 验证必要配置
 def validate_config():
-    if not config.OPENAI_API_KEY:
-        raise ValueError("OPENAI_API_KEY is required. Please set it in environment variables.")
-    
+    # 不强制要求环境变量存在，因为可能使用DB管理的模型配置
     # 创建必要的目录
     os.makedirs(config.UPLOAD_DIR, exist_ok=True)
     os.makedirs(config.OUTPUT_DIR, exist_ok=True) 
