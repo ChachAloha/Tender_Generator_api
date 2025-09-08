@@ -31,7 +31,7 @@ alwaysApply: false
 │   └── tasks.py             # 任务管理器与后台任务实现
 ├── config.py                # 配置与提示词，环境变量读取与校验
 ├── document_processor.py    # 文档处理模块，负责文档分块与总结
-├── outline_generator.py     # 目录生成模块，生成1-4层级目录结构
+├── outline_generator.py     # 目录生成模块，生成3-4层级目录结构
 ├── content_generator.py     # 内容生成模块，根据目录生成完整文档/补充文档
 ├── logging_config.py        # 日志格式与logger设置
 ├── requirements.txt         # 项目依赖
@@ -55,7 +55,7 @@ alwaysApply: false
 
 ### 2. 目录生成 (outline_generator.py)
 - **主要功能**:
-  - 基于文档总结生成1-4层级目录
+  - 基于文档总结生成3-4层级目录
   - 支持自定义最大层级（会被校正到3-4层，以保证有效内容生成）
   - 返回标准化的JSON格式目录
   - 包含备用目录生成机制

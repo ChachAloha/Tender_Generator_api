@@ -1,7 +1,7 @@
 from typing import Optional
 import logging
-from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Request, Path
+from pydantic import BaseModel, Field
 
 from model_config_store import (
     list_model_configs,
@@ -19,28 +19,40 @@ router = APIRouter(prefix="/api", tags=["model-configs"])
 
 
 class ModelConfigCreate(BaseModel):
-    name: str
-    base_url: str
-    model: str
-    api_key: str
-    is_active: Optional[bool] = False
+    name: str = Field(..., description="配置名称，便于区分用途")
+    base_url: str = Field(..., description="模型服务的 Base URL")
+    model: str = Field(..., description="模型名称或标识")
+    api_key: str = Field(..., description="访问模型服务的 API Key")
+    is_active: Optional[bool] = Field(False, description="是否设为激活配置，默认 false")
 
 
 class ModelConfigUpdate(BaseModel):
-    name: Optional[str] = None
-    base_url: Optional[str] = None
-    model: Optional[str] = None
-    api_key: Optional[str] = None
+    name: Optional[str] = Field(None, description="配置名称")
+    base_url: Optional[str] = Field(None, description="模型服务 Base URL")
+    model: Optional[str] = Field(None, description="模型名称或标识")
+    api_key: Optional[str] = Field(None, description="API Key")
 
 
-@router.get("/model-configs")
+@router.get(
+    "/model-configs",
+    summary="列出模型配置（密钥脱敏）",
+    description="返回所有已保存的模型配置列表，密钥字段已脱敏。",
+)
 async def api_list_model_configs(request: Request):
     db_path = request.app.state.model_config_db_path
     items = list_model_configs(db_path)
     return {"success": True, "items": items}
 
 
-@router.post("/model-configs")
+@router.post(
+    "/model-configs",
+    summary="新增模型配置",
+    description="创建新的模型配置，支持可选设为激活。",
+    responses={
+        200: {"description": "创建成功"},
+        422: {"description": "参数校验失败"},
+    },
+)
 async def api_create_model_config(request: Request, payload: ModelConfigCreate):
     db_path = request.app.state.model_config_db_path
     created = create_model_config(
@@ -64,8 +76,16 @@ async def api_create_model_config(request: Request, payload: ModelConfigCreate):
     }
 
 
-@router.patch("/model-configs/{config_id}")
-async def api_update_model_config(request: Request, config_id: str, payload: ModelConfigUpdate):
+@router.patch(
+    "/model-configs/{config_id}",
+    summary="更新模型配置",
+    description="根据配置 ID 局部更新模型配置，未提供的字段保持不变。",
+    responses={
+        200: {"description": "更新成功"},
+        404: {"description": "配置不存在"},
+    },
+)
+async def api_update_model_config(request: Request, config_id: str = Path(..., description="配置 ID"), payload: ModelConfigUpdate = ...):
     db_path = request.app.state.model_config_db_path
     existing = get_model_config(db_path, config_id)
     if not existing:
@@ -92,8 +112,16 @@ async def api_update_model_config(request: Request, config_id: str, payload: Mod
     }
 
 
-@router.post("/model-configs/{config_id}/activate")
-async def api_activate_model_config(request: Request, config_id: str):
+@router.post(
+    "/model-configs/{config_id}/activate",
+    summary="切换激活配置",
+    description="将指定配置设置为当前激活配置。",
+    responses={
+        200: {"description": "切换成功"},
+        404: {"description": "配置不存在"},
+    },
+)
+async def api_activate_model_config(request: Request, config_id: str = Path(..., description="配置 ID")):
     db_path = request.app.state.model_config_db_path
     ok = activate_model_config(db_path, config_id)
     if not ok:
@@ -112,8 +140,16 @@ async def api_activate_model_config(request: Request, config_id: str):
     }
 
 
-@router.delete("/model-configs/{config_id}")
-async def api_delete_model_config(request: Request, config_id: str):
+@router.delete(
+    "/model-configs/{config_id}",
+    summary="删除模型配置",
+    description="根据配置 ID 删除模型配置。",
+    responses={
+        200: {"description": "删除成功"},
+        404: {"description": "配置不存在或已删除"},
+    },
+)
+async def api_delete_model_config(request: Request, config_id: str = Path(..., description="配置 ID")):
     db_path = request.app.state.model_config_db_path
     ok = delete_model_config(db_path, config_id)
     if not ok:

@@ -34,11 +34,31 @@ async def lifespan(app: FastAPI):
     # 关闭时执行
     logger.info("应用正在关闭")
 
+openapi_tags = [
+    {
+        "name": "processing",
+        "description": "文档处理相关接口：上传文档、生成目录、生成文档与补充文档（异步任务）。",
+    },
+    {
+        "name": "tasks",
+        "description": "任务查询接口：根据任务 ID 查询状态与结果。",
+    },
+    {
+        "name": "downloads",
+        "description": "下载接口：下载已生成的文档文件。",
+    },
+    {
+        "name": "model-configs",
+        "description": "模型配置接口：创建、更新、激活与删除模型配置。",
+    },
+]
+
 app = FastAPI(
     title="文档处理与生成API",
     description="提供文档总结、目录生成和内容生成功能的API服务",
     version="1.3.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    openapi_tags=openapi_tags,
 )
 
 # 配置CORS

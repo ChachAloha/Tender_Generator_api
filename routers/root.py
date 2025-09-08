@@ -4,11 +4,15 @@ from fastapi import APIRouter
 router = APIRouter()
 
 
-@router.get("/")
+@router.get(
+    "/",
+    summary="服务健康检查与入口说明",
+    description="返回服务状态与主要接口清单。",
+)
 async def root():
     return {
         "service": "文档处理与生成API",
-        "version": "1.1.0",
+        "version": "1.3.0",
         "status": "运行中",
         "endpoints": [
             {"path": "/api/process-document", "method": "POST", "description": "处理并总结文档（异步）"},

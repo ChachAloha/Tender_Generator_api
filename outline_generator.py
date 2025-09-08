@@ -51,7 +51,7 @@ class OutlineGenerator:
         return json.dumps(example, indent=2, ensure_ascii=False)
 
     async def generate_outline(self, summary_content: str, max_level: int = 4) -> Dict[str, Any]:
-        """根据总结内容生成1-4层级的目录结构
+        """根据总结内容生成3-4层级的目录结构
         
         Args:
             summary_content: 文档总结内容

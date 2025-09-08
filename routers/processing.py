@@ -1,11 +1,10 @@
+from __future__ import annotations
 import json
 import logging
 from fastapi import APIRouter, BackgroundTasks, UploadFile, File, Form, HTTPException, Request
-
 from fastapi.responses import JSONResponse
 from markitdown import MarkItDown
 
-from config import config
 from services.tasks import (
     save_upload_file,
     task_manager,
@@ -20,12 +19,34 @@ logger = logging.getLogger("app")
 router = APIRouter(prefix="/api", tags=["processing"])
 
 
-@router.post("/process-document")
+@router.post(
+    "/process-document",
+    summary="处理并总结文档",
+    description=(
+        "上传 PDF 或 DOCX 文档，服务端解析并可选进行总结。"
+        "本接口异步执行，返回任务 ID 用于后续查询进度与结果。"
+    ),
+    responses={
+        200: {
+            "description": "任务创建成功",
+            "content": {
+                "application/json": {
+                    "example": {"success": True, "message": "文档处理任务已创建", "task_id": "ab12cd34"}
+                }
+            },
+        },
+        400: {"description": "请求参数错误（文件名为空或扩展名不被支持）"},
+        500: {"description": "服务器内部错误"},
+    },
+)
 async def process_document(
     request: Request,
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    return_original: bool = Form(True, description="如果为true，则直接返回文档原文，跳过总结"),
+    file: UploadFile = File(..., description="待处理的文档，仅支持 .pdf 与 .docx"),
+    return_original: bool = Form(
+        True,
+        description="true 则返回文档原文（略过总结）；false 则执行总结并生成摘要",
+    ),
 ):
     try:
         logger.info(f"收到文档处理请求: {file.filename}, return_original={return_original}")
@@ -43,6 +64,7 @@ async def process_document(
 
         db_path = request.app.state.model_config_db_path
         from services.tasks import process_document_task
+
         background_tasks.add_task(process_document_task, task_id, file_path, return_original, db_path)
 
         return {"success": True, "message": "文档处理任务已创建", "task_id": task_id}
@@ -52,12 +74,31 @@ async def process_document(
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 
-@router.post("/generate-outline")
+@router.post(
+    "/generate-outline",
+    summary="根据总结生成目录结构",
+    description=(
+        "根据提供的文档总结自动生成 3-4 级目录结构。"
+        "本接口异步执行，返回任务 ID 用于后续查询进度与结果。"
+    ),
+    responses={
+        200: {
+            "description": "任务创建成功",
+            "content": {
+                "application/json": {
+                    "example": {"success": True, "message": "目录生成任务已创建", "task_id": "ef56gh78"}
+                }
+            },
+        },
+        400: {"description": "请求参数错误（总结过短或层级范围不合法）"},
+        500: {"description": "服务器内部错误"},
+    },
+)
 async def generate_outline(
     request: Request,
     background_tasks: BackgroundTasks,
-    summary: str = Form(...),
-    max_level: int = Form(4),
+    summary: str = Form(..., description="文档总结，至少 10 个字符"),
+    max_level: int = Form(4, description="目录最大层级，范围 3-4，默认 4"),
 ):
     try:
         logger.info(f"收到目录生成请求, max_level={max_level}")
@@ -66,8 +107,8 @@ async def generate_outline(
         if not summary or len(summary.strip()) < 10:
             raise HTTPException(status_code=400, detail="总结内容过短或为空")
 
-        if max_level < 1 or max_level > 4:
-            raise HTTPException(status_code=400, detail="目录层级必须在1-4之间")
+        if max_level < 3 or max_level > 4:
+            raise HTTPException(status_code=400, detail="目录层级必须在3-4之间")
 
         task_id = task_manager.create_task()
 
@@ -76,19 +117,39 @@ async def generate_outline(
 
         return {"success": True, "message": "目录生成任务已创建", "task_id": task_id}
 
-    except Exception as e:
+    except Exception:
         logger.exception("生成目录请求失败")
-        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+        return JSONResponse(status_code=500, content={"success": False, "error": "内部错误"})
 
 
-@router.post("/generate-document")
+@router.post(
+    "/generate-document",
+    summary="根据总结与目录生成文档",
+    description=(
+        "根据提供的总结与目录结构，按指定样式模板生成完整文档。"
+        "支持可选上传清单文件（pdf/docx/xlsx/xls），用于丰富内容。"
+        "本接口异步执行，返回任务 ID 用于后续查询进度与结果。"
+    ),
+    responses={
+        200: {
+            "description": "任务创建成功",
+            "content": {
+                "application/json": {
+                    "example": {"success": True, "message": "文档生成任务已创建", "task_id": "xy90ij12"}
+                }
+            },
+        },
+        400: {"description": "请求参数错误（总结过短、目录 JSON 无效或样式模板不合法）"},
+        500: {"description": "服务器内部错误"},
+    },
+)
 async def generate_document(
     request: Request,
     background_tasks: BackgroundTasks,
-    summary: str = Form(...),
-    outline_json: str = Form(...),
-    style_template: str = Form("A"),
-    checklist_file: UploadFile = File(None),
+    summary: str = Form(..., description="文档总结，至少 10 个字符"),
+    outline_json: str = Form(..., description="目录结构的 JSON 字符串"),
+    style_template: str = Form("A", description="样式模板，可选值：A/B/C/D/E"),
+    checklist_file: UploadFile = File(None, description="可选清单文件：pdf/docx/doc/xlsx/xls"),
 ):
     try:
         logger.info(f"收到文档生成请求, style_template={style_template}")
@@ -138,18 +199,37 @@ async def generate_document(
 
         return {"success": True, "message": "文档生成任务已创建", "task_id": task_id}
 
-    except Exception as e:
+    except Exception:
         logger.exception("生成文档请求失败")
-        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+        return JSONResponse(status_code=500, content={"success": False, "error": "内部错误"})
 
 
-@router.post("/generate-supplementary-document")
+@router.post(
+    "/generate-supplementary-document",
+    summary="生成补充说明文档",
+    description=(
+        "根据总结与用户补充需求生成补充说明文档。"
+        "本接口异步执行，返回任务 ID 用于后续查询进度与结果。"
+    ),
+    responses={
+        200: {
+            "description": "任务创建成功",
+            "content": {
+                "application/json": {
+                    "example": {"success": True, "message": "补充文档生成任务已创建", "task_id": "kl34mn56"}
+                }
+            },
+        },
+        400: {"description": "请求参数错误（总结或用户需求过短，或样式模板不合法）"},
+        500: {"description": "服务器内部错误"},
+    },
+)
 async def generate_supplementary_document(
     request: Request,
     background_tasks: BackgroundTasks,
-    summary: str = Form(...),
-    user_request: str = Form(...),
-    style_template: str = Form("A"),
+    summary: str = Form(..., description="文档总结，至少 10 个字符"),
+    user_request: str = Form(..., description="用户补充需求，至少 5 个字符"),
+    style_template: str = Form("A", description="样式模板，可选值：A/B/C/D/E"),
 ):
     try:
         logger.info(f"收到补充文档生成请求, style_template={style_template}")
@@ -173,8 +253,6 @@ async def generate_supplementary_document(
 
         return {"success": True, "message": "补充文档生成任务已创建", "task_id": task_id}
 
-    except Exception as e:
+    except Exception:
         logger.exception("生成补充文档请求失败")
-        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
-
-
+        return JSONResponse(status_code=500, content={"success": False, "error": "内部错误"})
