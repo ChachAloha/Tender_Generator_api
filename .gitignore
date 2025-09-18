@@ -96,6 +96,7 @@ secrets.*
 uploads
 output
 __pycache__/*
+data
 # checkpoints/
 
 

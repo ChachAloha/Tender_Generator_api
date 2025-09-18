@@ -45,9 +45,9 @@ async def _probe_json_object_support(base_url: str, api_key: str, model: str) ->
             model=model,
             messages=[
                 {"role": "system", "content": "只返回一个有效的JSON对象。"},
-                {"role": "user", "content": "{\"ok\": true}"},
+                {"role": "user", "content": "请输出：{\"ok\": true}，不要输出其他内容。"},
             ],
-            max_tokens=16,
+            max_tokens=256,
             temperature=0,
             response_format={"type": "json_object"},
         )
@@ -102,7 +102,6 @@ async def api_create_model_config(request: Request, payload: ModelConfigCreate):
             "name": created["name"],
             "base_url": created["base_url"],
             "model": created["model"],
-            "api_key_masked": "***",
             "is_active": created["is_active"],
         },
     }
