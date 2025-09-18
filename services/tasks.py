@@ -75,6 +75,31 @@ class TaskManager:
             return self.results[task_id]["data"]
         return None
 
+    def _cleanup_directory(self, directory: str, ttl_seconds: int) -> int:
+        """删除目录中超过TTL的文件，返回删除数量。"""
+        removed = 0
+        now = time.time()
+        try:
+            os.makedirs(directory, exist_ok=True)
+            for name in os.listdir(directory):
+                path = os.path.join(directory, name)
+                try:
+                    if os.path.isfile(path):
+                        mtime = os.path.getmtime(path)
+                        if now - mtime > ttl_seconds:
+                            os.remove(path)
+                            removed += 1
+                    elif os.path.isdir(path):
+                        # 可选：清理空目录
+                        if not os.listdir(path):
+                            # 跳过：仅当需要时删除空目录
+                            pass
+                except Exception as e:
+                    logger.warning(f"清理文件失败: {path} - {e}")
+        except Exception as e:
+            logger.warning(f"遍历目录失败: {directory} - {e}")
+        return removed
+
     def cleanup(self) -> int:
         current_time = time.time()
         if current_time - self.last_cleanup < 3600:
@@ -82,6 +107,7 @@ class TaskManager:
 
         count = 0
 
+        # 清理超时任务
         expired_tasks = [
             task_id
             for task_id, task in self.tasks.items()
@@ -96,6 +122,7 @@ class TaskManager:
             self.tasks[task_id]["message"] = "任务超时"
             count += 1
 
+        # 清理过期结果
         expired_results = [
             task_id
             for task_id, result in self.results.items()
@@ -105,6 +132,10 @@ class TaskManager:
         for task_id in expired_results:
             del self.results[task_id]
             count += 1
+
+        # 文件系统清理（uploads/output）
+        count += self._cleanup_directory(config.UPLOAD_DIR, config.UPLOAD_TTL)
+        count += self._cleanup_directory(config.OUTPUT_DIR, config.OUTPUT_TTL)
 
         self.last_cleanup = current_time
         return count
@@ -207,6 +238,13 @@ async def process_document_task(
     except Exception as e:
         logger.exception(f"任务 {task_id}: 处理文档时发生未捕获的异常")
         task_manager.update_task(task_id, TaskStatus.FAILED, 100, f"处理失败: {str(e)}")
+    finally:
+        # 删除上传的临时文件（若存在）
+        try:
+            if file_path and os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            logger.warning(f"删除上传临时文件失败: {file_path} - {e}")
 
 
 async def generate_outline_task(

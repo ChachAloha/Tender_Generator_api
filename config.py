@@ -27,9 +27,12 @@ class Config:
     PORT: int = int(os.getenv("PORT", "8000"))
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     
-    # 上传文件配置
+    # 上传/输出目录配置
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "./uploads")
     OUTPUT_DIR: str = os.getenv("OUTPUT_DIR", "./output")
+    # 临时文件清理策略（秒）
+    UPLOAD_TTL: int = int(os.getenv("UPLOAD_TTL", "86400"))   # 默认保留1天
+    OUTPUT_TTL: int = int(os.getenv("OUTPUT_TTL", "259200"))  # 默认保留3天
 
     # 新增：日志配置
     APP_ENV: str = os.getenv("APP_ENV", "development") # "development" 或 "production"
