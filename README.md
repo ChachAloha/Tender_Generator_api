@@ -174,7 +174,6 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 - `OPENAI_MODEL`: 使用的模型，默认为"gpt-3.5-turbo"
 - `OPENAI_BASE_URL`: API基础URL
 - `MAX_CHUNK_SIZE`: 文本块最大大小，默认2000
-- `CHUNK_OVERLAP`: 文本块重叠大小，默认200
 - `SUMMARY_MAX_TOKENS`: 单个总结最大令牌数，默认500
 - `FINAL_SUMMARY_MAX_TOKENS`: 最终总结最大令牌数，默认3000
 - `MAX_CONCURRENT_REQUESTS`: 最大并发请求数，默认5

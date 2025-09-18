@@ -131,7 +131,7 @@ alwaysApply: false
   - `OPENAI_API_KEY`: API密钥
   - `OPENAI_MODEL`: 默认 `deepseek-chat`
   - `OPENAI_BASE_URL`: 默认 `https://api.deepseek.com/v1`
-  - 文档处理：`MAX_CHUNK_SIZE`(默认2048), `CHUNK_OVERLAP`(默认200)
+  - 文档处理：`MAX_CHUNK_SIZE`(默认2048)
   - 并发：`MAX_CONCURRENT_REQUESTS`(默认10)
   - 任务：`TASK_TIMEOUT`(默认3600), `TASK_RESULT_TTL`(默认86400)
   - 服务：`HOST`(默认0.0.0.0), `PORT`(默认8000), `DEBUG`(默认True)

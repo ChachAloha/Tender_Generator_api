@@ -7,13 +7,12 @@ load_dotenv()
 class Config:
     # OpenAI API配置
     # 环境变量提供默认值；若DB中存在激活配置，将在运行时覆盖
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "")
-    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "sk-d44269bc154944f0b35891086038c2d0")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "deepseek-chat")
+    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "https://api.deepseek.com/v1")
     
     # 文档处理配置
     MAX_CHUNK_SIZE: int = int(os.getenv("MAX_CHUNK_SIZE", "2048"))
-    CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "200"))
     
     # 并发配置
     MAX_CONCURRENT_REQUESTS: int = int(os.getenv("MAX_CONCURRENT_REQUESTS", "10"))

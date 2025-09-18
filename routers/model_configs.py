@@ -2,6 +2,7 @@ from typing import Optional
 import logging
 from fastapi import APIRouter, HTTPException, Request, Path
 from pydantic import BaseModel, Field
+import openai
 
 from model_config_store import (
     list_model_configs,
@@ -33,6 +34,31 @@ class ModelConfigUpdate(BaseModel):
     api_key: Optional[str] = Field(None, description="API Key")
 
 
+async def _probe_json_object_support(base_url: str, api_key: str, model: str) -> None:
+    """探测目标模型是否支持 response_format={'type': 'json_object'}。
+
+    成功则返回；失败抛出 HTTPException(422)。
+    """
+    try:
+        client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url)
+        resp = await client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "只返回一个有效的JSON对象。"},
+                {"role": "user", "content": "{\"ok\": true}"},
+            ],
+            max_tokens=16,
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+        _ = resp.choices[0].message.content
+    except Exception as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"模型不支持 JSON response_format 或配置无效：{str(e)}",
+        )
+
+
 @router.get(
     "/model-configs",
     summary="列出模型配置（密钥脱敏）",
@@ -55,6 +81,12 @@ async def api_list_model_configs(request: Request):
 )
 async def api_create_model_config(request: Request, payload: ModelConfigCreate):
     db_path = request.app.state.model_config_db_path
+    # 在保存前进行能力探测，确保模型支持 JSON 对象输出
+    await _probe_json_object_support(
+        base_url=payload.base_url.strip(),
+        api_key=payload.api_key.strip(),
+        model=payload.model.strip(),
+    )
     created = create_model_config(
         db_path=db_path,
         name=payload.name.strip(),
@@ -90,6 +122,15 @@ async def api_update_model_config(request: Request, config_id: str = Path(..., d
     existing = get_model_config(db_path, config_id)
     if not existing:
         raise HTTPException(status_code=404, detail="配置不存在")
+    # 计算生效配置（考虑部分字段更新）并进行能力探测
+    effective_base_url = payload.base_url.strip() if payload.base_url is not None else existing["base_url"]
+    effective_model = payload.model.strip() if payload.model is not None else existing["model"]
+    effective_api_key = payload.api_key.strip() if payload.api_key is not None else existing["api_key"]
+    await _probe_json_object_support(
+        base_url=effective_base_url,
+        api_key=effective_api_key,
+        model=effective_model,
+    )
     updated = update_model_config(
         db_path=db_path,
         config_id=config_id,
