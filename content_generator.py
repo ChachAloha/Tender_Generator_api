@@ -457,8 +457,7 @@ class ContentGenerator:
                 raise Exception(f"补充文档目录生成失败：无法解析JSON。错误: {e}")
 
             # 2. 并行生成所有章节内容
-            # 注意：这里的context从summary改为summary + user_request，让内容生成更贴近用户需求
-            generation_context = f"项目总结：\n{summary}\n\n用户补充需求：\n{user_request}"
+            generation_context = f"用户补充需求：\n{user_request}"
             sections = await self.generate_all_sections_parallel(
                 outline_data, 
                 generation_context,

@@ -110,7 +110,7 @@ alwaysApply: false
 
 4. **POST /api/generate-supplementary-document**
    - 生成补充说明文档
-   - 参数: summary, user_request, style_template(A/B/C/D/E, 默认A)
+   - 参数: user_request, style_template(A/B/C/D/E, 默认A)
    - 返回任务ID
 
 ### 任务管理端点（routers/tasks.py）
