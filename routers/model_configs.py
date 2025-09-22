@@ -146,7 +146,6 @@ async def api_update_model_config(request: Request, config_id: str = Path(..., d
             "name": updated["name"],
             "base_url": updated["base_url"],
             "model": updated["model"],
-            "api_key_masked": "***",
             "is_active": bool(updated["is_active"]),
         },
     }
@@ -174,7 +173,6 @@ async def api_activate_model_config(request: Request, config_id: str = Path(...,
             "name": item["name"],
             "base_url": item["base_url"],
             "model": item["model"],
-            "api_key_masked": "***",
             "is_active": True,
         },
     }

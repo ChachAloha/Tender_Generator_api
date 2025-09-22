@@ -1,0 +1,6 @@
+python-multipart
+fastapi
+python-docx
+uvicorn
+openai
+markitdown[pdf, docx, xlsx, xls]==0.1.3

@@ -422,7 +422,7 @@ class ContentGenerator:
                 "document_path": None
             }
 
-    async def generate_supplementary_document(self, summary: str, user_request: str, style_template: str = 'A') -> Dict[str, Any]:
+    async def generate_supplementary_document(self, user_request: str, style_template: str = 'A') -> Dict[str, Any]:
         """
         生成补充文档的完整流程。
         1. 根据用户请求动态生成一个简单的outline。
@@ -432,7 +432,6 @@ class ContentGenerator:
         try:
             # 1. 动态生成补充文档的Outline
             supplementary_outline_prompt = prompts.GENERATE_SUPPLEMENTARY_OUTLINE.format(
-                summary=summary,
                 user_request=user_request
             )
             

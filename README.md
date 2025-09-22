@@ -184,3 +184,4 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 - `DEBUG`: 调试模式，默认True
 - `UPLOAD_DIR`: 上传目录，默认"./uploads"
 - `OUTPUT_DIR`: 输出目录，默认"./output" 
+docker-compose build --no-cache && docker-compose up -d

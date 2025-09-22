@@ -227,16 +227,12 @@ async def generate_document(
 async def generate_supplementary_document(
     request: Request,
     background_tasks: BackgroundTasks,
-    summary: str = Form(..., description="文档总结，至少 10 个字符"),
     user_request: str = Form(..., description="用户补充需求，至少 5 个字符"),
     style_template: str = Form("A", description="样式模板，可选值：A/B/C/D/E"),
 ):
     try:
         logger.info(f"收到补充文档生成请求, style_template={style_template}")
         task_manager.cleanup()
-
-        if not summary or len(summary.strip()) < 10:
-            raise HTTPException(status_code=400, detail="总结内容过短或为空")
 
         if not user_request or len(user_request.strip()) < 5:
             raise HTTPException(status_code=400, detail="用户补充需求过短或为空")
@@ -248,7 +244,7 @@ async def generate_supplementary_document(
 
         db_path = request.app.state.model_config_db_path
         background_tasks.add_task(
-            generate_supplementary_document_task, task_id, summary, user_request, style_template, db_path
+            generate_supplementary_document_task, task_id, user_request, style_template, db_path
         )
 
         return {"success": True, "message": "补充文档生成任务已创建", "task_id": task_id}

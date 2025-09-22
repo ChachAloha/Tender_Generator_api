@@ -323,7 +323,6 @@ async def generate_document_task(
 
 async def generate_supplementary_document_task(
     task_id: str,
-    summary: str,
     user_request: str,
     style_template: str = "A",
     db_path: Optional[str] = None,
@@ -337,7 +336,7 @@ async def generate_supplementary_document_task(
 
         active_cfg = get_active_model_config(db_path)
         cg = ContentGenerator(active_cfg)
-        result = await cg.generate_supplementary_document(summary, user_request, style_template)
+        result = await cg.generate_supplementary_document(user_request, style_template)
 
         if not result["success"]:
             error_message = result.get("error", "未知错误")
