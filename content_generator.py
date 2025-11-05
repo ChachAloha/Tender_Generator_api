@@ -50,8 +50,14 @@ class ContentGenerator:
         extract_sections(outline_items)
         return sections
     
-    async def generate_section_content(self, section: Dict, summary: str) -> Dict:
-        """为单个章节生成内容，分两次生成并合并，实现续写效果。"""
+    async def generate_section_content(self, section: Dict, summary: str, enable_continuation: bool = False) -> Dict:
+        """为单个章节生成内容，支持可选的续写功能。
+        
+        Args:
+            section: 章节信息字典
+            summary: 文档总结
+            enable_continuation: 是否启用续写功能（默认False）
+        """
         try:
             section_title = section.get("title", "未命名章节")
             section_level = section.get("level", 1)
@@ -102,7 +108,7 @@ class ContentGenerator:
             content1_raw = response1.choices[0].message.content or ""
             content1_normalized = self._normalize_content(content1_raw.strip())
 
-            # 如果第一次生成的内容为空，则直接返回，不进行续写
+            # 如果第一次生成的内容为空，则直接返回
             if not content1_normalized:
                 return {
                     "id": section.get("id", ""),
@@ -115,7 +121,20 @@ class ContentGenerator:
                     "has_children": has_children
                 }
 
-            # --- 第二次生成 (续写) ---
+            # 如果未启用续写功能，直接返回第一次生成的内容
+            if not enable_continuation:
+                return {
+                    "id": section.get("id", ""),
+                    "title": section_title,
+                    "level": section_level,
+                    "content": content1_normalized,
+                    "parent_path": parent_path,
+                    "full_path": full_path,
+                    "parent_id": parent_id,
+                    "has_children": has_children
+                }
+
+            # --- 第二次生成 (续写) - 仅在启用时执行 ---
             prompt2 = prompts.CONTINUE_SECTION_CONTENT.format(
                 section_title=section_title,
                 section_level=section_level,
@@ -165,8 +184,15 @@ class ContentGenerator:
                 "has_children": section.get("has_children", False)
             }
     
-    async def generate_all_sections_parallel(self, outline_data: Dict, summary: str, section_generator_func=None) -> List[Dict]:
-        """并行生成所有层级章节的内容"""
+    async def generate_all_sections_parallel(self, outline_data: Dict, summary: str, section_generator_func=None, enable_continuation: bool = False) -> List[Dict]:
+        """并行生成所有层级章节的内容
+        
+        Args:
+            outline_data: 目录数据
+            summary: 文档总结
+            section_generator_func: 自定义章节生成函数（可选）
+            enable_continuation: 是否启用续写功能（默认False）
+        """
         # 1. 将嵌套结构扁平化为所有章节的列表
         all_sections = self._flatten_outline_to_sections(outline_data)
         
@@ -181,7 +207,11 @@ class ContentGenerator:
         
         async def process_section_with_semaphore(section: Dict) -> Dict:
             async with semaphore:
-                return await generator_func(section, summary)
+                # 如果使用自定义生成函数，不传递 enable_continuation
+                if section_generator_func:
+                    return await generator_func(section, summary)
+                else:
+                    return await generator_func(section, summary, enable_continuation)
         
         # 3. 创建所有章节的任务列表
         tasks = [process_section_with_semaphore(section) for section in all_sections]
@@ -317,7 +347,7 @@ class ContentGenerator:
         
         # 其他级别标题 (Level 3-5)
         if level >= 3:
-            set_run_font(run, 12)  # 小四号字
+            set_run_font(run, 12, bold=True)  # 小四号字加黑
             # 根据样式模板可能需要调整缩进
             if style_template == 'D' and level == 4:
                 p.paragraph_format.left_indent = Pt(24)  # 退格
@@ -393,11 +423,18 @@ class ContentGenerator:
             tb_str = traceback.format_exc()
             raise Exception(f"文档生成失败: {str(e)}\n{tb_str}")
     
-    async def generate_document(self, summary: str, outline_data: Dict, style_template: str = 'A') -> Dict[str, Any]:
-        """完整的文档生成流程"""
+    async def generate_document(self, summary: str, outline_data: Dict, style_template: str = 'A', enable_continuation: bool = False) -> Dict[str, Any]:
+        """完整的文档生成流程
+        
+        Args:
+            summary: 文档总结
+            outline_data: 目录数据
+            style_template: 样式模板（A/B/C/D/E）
+            enable_continuation: 是否启用续写功能（默认False）
+        """
         try:
             # 1. 并行生成所有层级章节内容（扁平化处理）
-            sections = await self.generate_all_sections_parallel(outline_data, summary)
+            sections = await self.generate_all_sections_parallel(outline_data, summary, enable_continuation=enable_continuation)
             
             # 2. 生成输出文件路径
             timestamp = int(asyncio.get_event_loop().time())

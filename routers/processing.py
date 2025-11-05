@@ -149,10 +149,11 @@ async def generate_document(
     summary: str = Form(..., description="文档总结，至少 10 个字符"),
     outline_json: str = Form(..., description="目录结构的 JSON 字符串"),
     style_template: str = Form("A", description="样式模板，可选值：A/B/C/D/E"),
+    enable_continuation: bool = Form(False, description="是否启用续写功能（默认False，启用后会对每个章节进行二次扩写）"),
     checklist_file: UploadFile = File(None, description="可选清单文件：pdf/docx/doc/xlsx/xls"),
 ):
     try:
-        logger.info(f"收到文档生成请求, style_template={style_template}")
+        logger.info(f"收到文档生成请求, style_template={style_template}, enable_continuation={enable_continuation}")
         task_manager.cleanup()
 
         if not summary or len(summary.strip()) < 10:
@@ -194,7 +195,7 @@ async def generate_document(
 
         db_path = request.app.state.model_config_db_path
         background_tasks.add_task(
-            generate_document_task, task_id, merged_summary, outline_data, style_template, db_path
+            generate_document_task, task_id, merged_summary, outline_data, style_template, enable_continuation, db_path
         )
 
         return {"success": True, "message": "文档生成任务已创建", "task_id": task_id}

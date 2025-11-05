@@ -4,9 +4,11 @@ services:
   tender-api:
     build: .
     container_name: tender-api-container
+    restart: always
     ports:
       - "8000:8000"
     volumes:
+      - ./data:/app/data
       - ./uploads:/app/uploads
       - ./output:/app/output
     logging:

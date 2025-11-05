@@ -284,10 +284,11 @@ async def generate_document_task(
     summary: str,
     outline_data: Dict[str, Any],
     style_template: str = "A",
+    enable_continuation: bool = False,
     db_path: Optional[str] = None,
 ):
     try:
-        logger.info(f"任务 {task_id}: 开始生成文档, style_template={style_template}")
+        logger.info(f"任务 {task_id}: 开始生成文档, style_template={style_template}, enable_continuation={enable_continuation}")
         task_manager.update_task(task_id, TaskStatus.PROCESSING, 10, "开始生成文档内容")
 
         if not db_path:
@@ -295,7 +296,7 @@ async def generate_document_task(
 
         active_cfg = get_active_model_config(db_path)
         cg = ContentGenerator(active_cfg)
-        result = await cg.generate_document(summary, outline_data, style_template)
+        result = await cg.generate_document(summary, outline_data, style_template, enable_continuation)
 
         if not result["success"]:
             logger.error(f"任务 {task_id}: 文档生成失败 - {result['error']}")
